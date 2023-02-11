@@ -183,18 +183,24 @@ def tst_epoch(net, loss_fn, epoch, step, log_name):
 
 bin_net = create_net(input_dim=input_dim, hid_dim=1024, binary=True)
 
-optim = torch.optim.Adam(bin_net.parameters(), lr=1e-4)
+optim_l = torch.optim.RAdam(bin_net.parameters(), lr=1.0e-5)
+optim = torch.optim.RAdam(bin_net.parameters(), lr=5.0e-5)
+# optim = torch.optim.ASGD(bin_net.parameters(), lr=1e-4)
 loss_fn = nn.CrossEntropyLoss()
 
 step_train = [0]
 step_test = [0]
-n_epochs = 10
+n_epochs = 100
 max_step = n_epochs * len(train_loader)
 
 min_t = 1
 max_t = 2
 
 for epoch in range(n_epochs):
+    if epoch == 0:
+        train_epoch(bin_net, optim_l, loss_fn, epoch, step_train, 'bin')
+        tst_epoch(bin_net, loss_fn, epoch, step_test, 'bin')
+
     train_epoch(bin_net, optim, loss_fn, epoch, step_train, 'bin')
     tst_epoch(bin_net, loss_fn, epoch, step_test, 'bin')
 
