@@ -171,12 +171,12 @@ def tst_epoch(net, loss_fn, epoch, step, log_name):
         loss = loss_fn(output, label)
         total_loss += loss.item()
         total_steps += 1
-
         total_acc += (output.argmax(dim=1) == label).sum().item()
         total_samples += image.shape[0]
 
     writer.add_scalars(f"Loss/test", {log_name: total_loss / total_steps}, step[0])
     writer.add_scalars(f"Accuracy/test", {log_name: total_acc / total_samples}, step[0])
+    step[0] += 1
     writer.flush()
 
 
