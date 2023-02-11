@@ -50,14 +50,14 @@ class BinaryLinearFunc(torch.autograd.Function):
             dL_dW = X_bin.T.mm(dL_dY) * (alpha * betta[None, :].T.mm(gamma[None, :])).flatten() * (1 - torch.tanh(W).pow(2))
 
         if ctx.needs_input_grad[2]:
-            dL_dalpha = (X_bin.mm(W_bin) * (betta[None, :].T.mm(gamma[None, :])).flatten() * dL_dY).sum()
+            dL_dalpha = (X_bin.mm(W_bin) * (betta[None, :].T.mm(gamma[None, :])).flatten() * dL_dY).sum(axis=0)
 
         # todo:
         if ctx.needs_input_grad[3]:
-            dL_dbetta = (X_bin.mm(W_bin) * (alpha * gamma[None, :]).flatten() * dL_dY).sum(axis=0)
+            dL_dbetta = (X_bin.mm(W_bin) * (alpha * gamma.diag().flatten()[None, :] * dL_dY)).reshape(128,32,-1).sum(axis=-1)
 
         if ctx.needs_input_grad[4]:
-            dL_dgamma = (X_bin.mm(W_bin) * (alpha * betta[None, :].T).flatten() * dL_dY).sum(axis=0)
+            dL_dgamma = (X_bin.mm(W_bin) * (alpha * betta.diag().flatten()[None, :] * dL_dY)).reshape(128,32,-1).sum(axis=-1)
 
         return dL_dX, dL_dW, dL_dalpha, dL_dbetta, dL_dgamma
 
@@ -69,12 +69,12 @@ class BinaryLinearLayer(nn.Module):
         self.W = nn.Parameter(torch.empty(in_features, out_features))
         self.alpha = nn.Parameter(torch.empty(0))
         self.betta = nn.Parameter(torch.empty(32))
-        self.gamma = nn.Parameter(torch.empty(64))
+        self.gamma = nn.Parameter(torch.empty(32))
 
         nn.init.xavier_uniform_(self.W)
         self.alpha.data = self.W.abs().mean()
         self.betta.data = self.W.abs().mean(axis=0)[:32]
-        self.gamma.data = self.W.abs().mean(axis=0)[32:96]
+        self.gamma.data = self.W.abs().mean(axis=0)[32:64]
 
         self.func = BinaryLinearFunc.apply
 
@@ -133,7 +133,19 @@ def train_epoch(net, optim, loss_fn, epoch, step, log_name):
 
         output = net(image)
         loss = loss_fn(output, label)
-
+        writer.add_hparams({'alpha_0': net.hidden_0.alpha.data.item(),
+                            'betta_0': net.hidden_0.betta.data.sum().item(),
+                            'gamma_0': net.hidden_0.betta.data.sum().item(),
+                            'alpha_1': net.hidden_1.alpha.data.item(),
+                            'betta_1': net.hidden_1.betta.data.sum().item(),
+                            'gamma_1': net.hidden_1.betta.data.sum().item(),
+                            'alpha_2': net.hidden_2.alpha.data.item(),
+                            'betta_2': net.hidden_2.betta.data.sum().item(),
+                            'gamma_2': net.hidden_2.betta.data.sum().item(),
+                            'alpha_3': net.hidden_3.alpha.data.item(),
+                            'betta_3': net.hidden_3.betta.data.sum().item(),
+                            'gamma_3': net.hidden_3.betta.data.sum().item()},
+                           {f"Loss/train{log_name}": loss.item()})
         writer.add_scalars(f"Loss/train", {log_name: loss.item()}, step[0])
 
         loss.backward()
@@ -168,28 +180,15 @@ def tst_epoch(net, loss_fn, epoch, step, log_name):
     writer.flush()
 
 
-simple_net = create_net(input_dim=input_dim)
 
-optim = torch.optim.Adam(simple_net.parameters(), lr=1e-3)
+bin_net = create_net(input_dim=input_dim, hid_dim=1024, binary=True)
+
+optim = torch.optim.Adam(bin_net.parameters(), lr=1e-4)
 loss_fn = nn.CrossEntropyLoss()
 
 step_train = [0]
 step_test = [0]
-n_epochs = 1
-max_step = n_epochs * len(train_loader)
-
-for epoch in range(n_epochs):
-    train_epoch(simple_net, optim, loss_fn, epoch, step_train, 'float')
-    tst_epoch(simple_net, loss_fn, epoch, step_test, 'float')
-
-
-bin_net = create_net(input_dim=input_dim, hid_dim=2048, binary=True)
-
-optim = torch.optim.Adam(bin_net.parameters(), lr=1e-4)
-
-step_train = [0]
-step_test = [0]
-n_epochs = 1
+n_epochs = 10
 max_step = n_epochs * len(train_loader)
 
 min_t = 1
@@ -200,3 +199,23 @@ for epoch in range(n_epochs):
     tst_epoch(bin_net, loss_fn, epoch, step_test, 'bin')
 
 print('end')
+
+
+
+
+simple_net = create_net(input_dim=input_dim)
+
+optim = torch.optim.Adam(simple_net.parameters(), lr=1e-3)
+
+step_train = [0]
+step_test = [0]
+n_epochs = 10
+max_step = n_epochs * len(train_loader)
+
+for epoch in range(n_epochs):
+    train_epoch(simple_net, optim, loss_fn, epoch, step_train, 'float')
+    tst_epoch(simple_net, loss_fn, epoch, step_test, 'float')
+
+
+
+
