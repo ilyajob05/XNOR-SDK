@@ -326,6 +326,7 @@ def train_epoch(net, optim, loss_fn, epoch, step, log_name):
         optim.zero_grad()
         step[0] += 1
         writer.flush()
+
     writer.add_hparams({'alpha_0': net.hidden_0.alpha.data.item(),
                         'betta_0': net.hidden_0.betta.data.sum().item(),
                         'gamma_0': net.hidden_0.betta.data.sum().item(),
@@ -340,7 +341,14 @@ def train_epoch(net, optim, loss_fn, epoch, step, log_name):
                         'gamma_3': net.hidden_3.betta.data.sum().item()},
                        {f"Loss/train{log_name}": loss.item()})
 
-    writer.add_histogram()
+    writer.add_histogram('conv00', net.conv00.weight, epoch)
+    writer.add_histogram('conv0', net.conv0.weight, epoch)
+    writer.add_histogram('conv1', net.conv1.weight, epoch)
+    writer.add_histogram('conv10', net.conv10.weight, epoch)
+    writer.add_histogram('conv2', net.conv2.weight, epoch)
+    writer.add_histogram('conv20', net.conv20.weight, epoch)
+    writer.add_histogram('fc1', net.fc1.weight, epoch)
+    writer.add_histogram('fc2', net.fc2.weight, epoch)
 
 
 @torch.no_grad()
