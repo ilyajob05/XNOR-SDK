@@ -327,18 +327,19 @@ def train_epoch(net, optim, loss_fn, epoch, step, log_name):
         step[0] += 1
         writer.flush()
 
-    writer.add_hparams({'alpha_0': net.hidden_0.alpha.data.item(),
-                        'betta_0': net.hidden_0.betta.data.sum().item(),
-                        'gamma_0': net.hidden_0.betta.data.sum().item(),
-                        'alpha_1': net.hidden_1.alpha.data.item(),
-                        'betta_1': net.hidden_1.betta.data.sum().item(),
-                        'gamma_1': net.hidden_1.betta.data.sum().item(),
-                        'alpha_2': net.hidden_2.alpha.data.item(),
-                        'betta_2': net.hidden_2.betta.data.sum().item(),
-                        'gamma_2': net.hidden_2.betta.data.sum().item(),
-                        'alpha_3': net.hidden_3.alpha.data.item(),
-                        'betta_3': net.hidden_3.betta.data.sum().item(),
-                        'gamma_3': net.hidden_3.betta.data.sum().item()},
+        writer.add_histogram('fc2', net.fc2.weight, epoch)
+
+        writer.add_histogram('alpha_conv1', net.conv1.alpha.data, epoch)
+
+    writer.add_hparams({'alpha_conv1': net.conv1.alpha.data.item(),
+                        'betta_conv1': net.conv1.betta.data.sum().item(),
+                        'alpha_conv10': net.conv10.alpha.data.item(),
+                        'betta_conv10': net.conv10.betta.data.sum().item(),
+                        'betta_conv2': net.conv2.betta.data.sum().item(),
+                        'alpha_conv2': net.conv2.alpha.data.item(),
+                        'betta_conv20': net.conv20.betta.data.sum().item(),
+                        'alpha_conv20': net.conv20.alpha.data.item(),
+                        },
                        {f"Loss/train{log_name}": loss.item()})
 
     writer.add_histogram('conv00', net.conv00.weight, epoch)
@@ -348,6 +349,16 @@ def train_epoch(net, optim, loss_fn, epoch, step, log_name):
     writer.add_histogram('conv2', net.conv2.weight, epoch)
     writer.add_histogram('conv20', net.conv20.weight, epoch)
     writer.add_histogram('fc1', net.fc1.weight, epoch)
+    writer.add_histogram('fc2', net.fc2.weight, epoch)
+
+    writer.add_histogram('alpha_conv1', net.conv1.alpha.data, epoch)
+    writer.add_histogram('betta_conv1', net.conv1.betta.data, epoch)
+    writer.add_histogram('alpha_conv10', net.conv10.alpha.data, epoch)
+    writer.add_histogram('betta_conv10', net.conv10.betta.data, epoch)
+    writer.add_histogram('betta_conv2', net.conv2.betta.data, epoch)
+    writer.add_histogram('alpha_conv2', net.conv2.alpha.data, epoch)
+    writer.add_histogram('betta_conv20', net.conv20.betta.data, epoch)
+    writer.add_histogram('alpha_conv20', net.conv20.alpha.data, epoch)
     writer.add_histogram('fc2', net.fc2.weight, epoch)
 
 
