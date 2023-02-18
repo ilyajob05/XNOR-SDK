@@ -99,7 +99,7 @@ class NetBin(nn.Module):
         self.conv2 = BinaryConv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=False, out_width=7, out_height=7)
         self.relu2 = nn.PReLU()
         self.pool2 = nn.MaxPool2d(2)
-        # self.drop2 = nn.Dropout2d()
+        self.drop2 = nn.Dropout2d()
 
         # full connection layer 1
         self.bn3 = nn.BatchNorm2d(128)
@@ -119,7 +119,7 @@ class NetBin(nn.Module):
         x = self.pool0(x)
         # x = self.drop0(x)
 
-        # x = self.bn1(x)
+        x = self.bn1(x)
         x = self.conv10(x)
         # x = self.relu10(x)
         x = self.conv1(x)
@@ -133,11 +133,11 @@ class NetBin(nn.Module):
         x = self.conv2(x)
         # x = self.relu2(x)
         x = self.pool2(x)
-        # x = self.drop2(x)
+        x = self.drop2(x)
 
         #         show input parameter
         #         print(x.shape)
-        # x = self.bn3(x)
+        x = self.bn3(x)
         x = self.fc1(x.view(x.size(0), -1))
         x = self.fc1Prelu(x)
         x = torch.nn.functional.dropout(x)
