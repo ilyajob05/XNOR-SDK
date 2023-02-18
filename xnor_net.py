@@ -51,7 +51,7 @@ class BinaryConv2d(torch.nn.Conv2d):
         self.beta = nn.Parameter(torch.ones(out_width).reshape(1,1,-1), requires_grad=True)
         self.gamma = nn.Parameter(torch.ones(out_channels).reshape(-1,1,1), requires_grad=True)
 
-        torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        # torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:
             fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
             if fan_in != 0:
@@ -76,9 +76,9 @@ class NetBin(nn.Module):
         super(NetBin, self).__init__()
         # convolution 1
         self.bn0 = nn.BatchNorm2d(1, 0.001,)
-        self.conv00 = BinaryConv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv00 = BinaryConv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False, out_width=28, out_height=28)
         self.relu00 = nn.PReLU()
-        self.conv0 = BinaryConv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv0 = BinaryConv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False, out_width=28, out_height=28)
         self.relu0 = nn.PReLU()
         self.pool0 = nn.MaxPool2d(2)
         # self.drop0 = nn.Dropout2d()
@@ -87,16 +87,16 @@ class NetBin(nn.Module):
         self.bn1 = nn.BatchNorm2d(32, 0.01)
         self.conv10 = BinaryConv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False, out_width=14, out_height=14)
         self.relu10 = nn.PReLU()
-        self.conv1 = BinaryConv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = BinaryConv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False, out_width=14, out_height=14)
         self.relu1 = nn.PReLU()
         self.pool1 = nn.MaxPool2d(2)
         # self.drop1 = nn.Dropout2d()
 
         # convolution 3
         self.bn2 = nn.BatchNorm2d(64, 0.01)
-        self.conv20 = BinaryConv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv20 = BinaryConv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=False, out_width=7, out_height=7)
         self.relu20 = nn.PReLU()
-        self.conv2 = BinaryConv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv2 = BinaryConv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=False, out_width=7, out_height=7)
         self.relu2 = nn.PReLU()
         self.pool2 = nn.MaxPool2d(2)
         # self.drop2 = nn.Dropout2d()
