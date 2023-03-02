@@ -6,12 +6,22 @@ from torch.nn.modules.utils import _single, _pair, _triple, _reverse_repeat_tupl
 
 from torchvision.datasets import MNIST, CIFAR10
 from torchvision.transforms import Compose, PILToTensor, ToTensor, Lambda, transforms
-
+import matplotlib.pyplot as plt
 from tqdm.notebook import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 t1 = torch.ones(3, 3, device = device)
 print(t1)
+
+
+
+def mshow(m):
+    mm = m.detach().numpy()
+    plt.set_cmap('plasma')
+    plt.matshow(mm)
+    plt.colorbar()
+    plt.show()
+
 
 
 class BinaryActivationFunc(torch.autograd.Function):
@@ -26,8 +36,9 @@ class BinaryActivationFunc(torch.autograd.Function):
         input, = ctx.saved_tensors
         grad_input = grad_output.clone()
         grad_input[input.le(-1)] = 0
-        grad_input[input.ge(-1)] = 0
+        grad_input[input.ge(1)] = 0
         return grad_input
+
 
 
 class BinaryConv2d(torch.nn.Conv2d):
@@ -59,8 +70,8 @@ class BinaryConv2d(torch.nn.Conv2d):
                 torch.nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        # input = BinaryActivationFunc.apply(input)
-        input = nn.functional.relu(input)
+        input = BinaryActivationFunc.apply(input)
+        # input = nn.functional.relu(input)
         real_weight = self.weight
         mean_weights = real_weight.mul(-1).mean(dim=(2,3), keepdim=True).expand_as(self.weight).contiguous()
         centered_weights = real_weight.add(mean_weights)
@@ -70,6 +81,9 @@ class BinaryConv2d(torch.nn.Conv2d):
         input = torch.nn.functional.conv2d(input, binary_weights, bias=self.bias, stride=self.stride, padding=self.padding,
                                            dilation=self.dilation, groups=self.groups)
         return input.mul(self.gamma).mul(self.beta).mul(self.alpha)
+
+
+mat_show_debug = True
 
 class NetBin(nn.Module):
     def __init__(self):
@@ -111,38 +125,66 @@ class NetBin(nn.Module):
 
     # direct computation
     def forward(self, x):
-        x = self.bn0(x)
+        if mat_show_debug:
+            mshow(x[0][0])
+        # x = self.bn0(x)
         x = self.conv00(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu00(x)
         x = self.conv0(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu0(x)
         x = self.pool0(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.drop0(x)
 
-        x = self.bn1(x)
+        # x = self.bn1(x)
         x = self.conv10(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu10(x)
         x = self.conv1(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu1(x)
         x = self.pool1(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.drop1(x)
 
         # x = self.bn2(x)
         x = self.conv20(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu20(x)
         x = self.conv2(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         # x = self.relu2(x)
         x = self.pool2(x)
+        if mat_show_debug:
+            mshow(x[0][0])
         x = self.drop2(x)
+        if mat_show_debug:
+            mshow(x[0][0])
 
         #         show input parameter
         #         print(x.shape)
-        x = self.bn3(x)
+        # x = self.bn3(x)
         x = self.fc1(x.view(x.size(0), -1))
+        if mat_show_debug:
+            mshow(x)
         x = self.fc1Prelu(x)
         x = torch.nn.functional.dropout(x)
         x = self.fc2(x)
+        if mat_show_debug:
+            mshow(x)
         x = torch.nn.functional.softmax(x, dim=1)
+        if mat_show_debug:
+            mshow(x)
         return x
 
 
@@ -150,6 +192,10 @@ class NetBin(nn.Module):
 net_bin = NetBin().to(device)
 # show network
 print(net_bin)
+
+tt = torch.load('/home/ilya/Downloads/xnor_model_weights_150.pth', map_location=device)
+
+net_bin.load_state_dict(torch.load('/home/ilya/Downloads/xnor_model_weights_90.pth', map_location=device))
 
 
 normalize = transforms.Normalize(mean = [0.5], std = [1.0])
@@ -248,7 +294,7 @@ def tst_epoch(net, loss_fn, epoch, step, log_name):
 
 optim_l = torch.optim.RAdam(net_bin.parameters(), lr=1.0e-5)
 # optim = torch.optim.RAdam(net_bin.parameters(), lr=5.0e-5)
-optim = torch.optim.Adam(net_bin.parameters())
+optim = torch.optim.Adam(net_bin.parameters(), lr=0.1)
 loss_fn = nn.CrossEntropyLoss()
 
 step_train = [0]
@@ -266,7 +312,6 @@ for epoch in range(n_epochs):
 
     train_epoch(net_bin, optim, loss_fn, epoch, step_train, 'bin')
     tst_epoch(net_bin, loss_fn, epoch, step_test, 'bin')
-
 
 print('end')
 
