@@ -1,7 +1,9 @@
-from torch.utils.tensorboard import SummaryWriter
-from xnor_net import *
+import torch
+
 
 def main():
+    a=torch.load('build-NN_Flow-Imported_Kit-Debug/one_t.pt')
+    b=torch.load('build-NN_Flow-Imported_Kit-Debug/two_t.pt')
     pass
 
 

@@ -13,6 +13,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 t1 = torch.ones(3, 3, device = device)
 print(t1)
 
+from torch.utils.cpp_extension import load
+xnor_convolution = load(name="xnor_convolution", sources=["xnor_convolution.cpp"], verbose=True)
 
 
 def mshow(m):
@@ -38,7 +40,6 @@ class BinaryActivationFunc(torch.autograd.Function):
         grad_input[input.le(-1)] = 0
         grad_input[input.ge(1)] = 0
         return grad_input
-
 
 
 class BinaryConv2d(torch.nn.Conv2d):
@@ -78,8 +79,16 @@ class BinaryConv2d(torch.nn.Conv2d):
         cliped_weights = torch.clamp(centered_weights, -1.0, 1.0)
         signed_weights = torch.sign(centered_weights).detach() - cliped_weights.detach() + cliped_weights
         binary_weights = signed_weights
-        input = torch.nn.functional.conv2d(input, binary_weights, bias=self.bias, stride=self.stride, padding=self.padding,
+        # todo:
+        input_tst = torch.nn.functional.conv2d(input, binary_weights, bias=self.bias, stride=self.stride, padding=self.padding,
                                            dilation=self.dilation, groups=self.groups)
+        input_t = xnor_convolution.convolution(input, binary_weights, int(self.stride[0]), int(self.padding[0]))
+
+
+        plt.matshow(input_t[0][0].detach().numpy())
+        plt.matshow(input_tst[0][0].detach().numpy())
+        plt.show()
+
         return input.mul(self.gamma).mul(self.beta).mul(self.alpha)
 
 
