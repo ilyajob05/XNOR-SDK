@@ -1,9 +1,69 @@
-#include <memory>
-#include <iostream>
+#include <torch/extension.h>
 #include <vector>
-#include <torch/torch.h>
-#include <torch/script.h>
-#include "torch_script_executor.hpp"
+#include <ATen/NativeFunctions.h>
+#include <ATen/Config.h>
+
+
+// at::Tensor convolution(
+//     const at::Tensor& input,
+//     const at::Tensor& weight,
+//     const at::Tensor& bias,
+//     c10::ArrayRef<int64_t> stride,
+//     c10::ArrayRef<int64_t> padding,
+//     c10::ArrayRef<int64_t> dilation,
+//     int64_t groups) 
+//     {
+//         auto output = torch::matmul(input, weight.t()) + bias;
+//         return output;
+//     }
+
+
+
+//
+//torch::Tensor convolution(
+//    const torch::Tensor& input,
+//    const torch::Tensor& weight,
+//    int stride,
+//    int padding)
+//{
+//    int batch_size = input.size(0);
+//    int in_channels = input.size(1);
+//    int input_height = input.size(2);
+//    int input_width = input.size(3);
+//    int out_channels = weight.size(0);
+//    int kernel_size_h = weight.size(2);
+//    int kernel_size_w = weight.size(3);
+//    int output_height = (input_height - kernel_size_h + 2 * padding) / stride + 1;
+//    int output_width = (input_width - kernel_size_w + 2 * padding) / stride + 1;
+//    torch::Tensor output = torch::zeros({batch_size, out_channels, output_height, output_width});
+//
+//    for (int b = 0; b < batch_size; b++) {
+//        for (int oc = 0; oc < out_channels; oc++) {
+//            for (int oh = 0; oh < output_height; oh++) {
+//                for (int ow = 0; ow < output_width; ow++) {
+//                    float sum = 0.0;
+//
+//                    for (int ic = 0; ic < in_channels; ic++) {
+//                        for (int kh = 0; kh < kernel_size_h; kh++) {
+//                            for (int kw = 0; kw < kernel_size_w; kw++) {
+//                                int ih = oh * stride + kh - padding;
+//                                int iw = ow * stride + kw - padding;
+//
+//                                if (ih >= 0 && ih < input_height && iw >= 0 && iw < input_width) {
+//                                    sum += input[b][ic][ih][iw].item<float>() * weight[oc][ic][kh][kw].item<float>();
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    output[b][oc][oh][ow] = sum;
+//                }
+//            }
+//        }
+//    }
+//    return output;
+//}
+//
 
 
 
@@ -47,15 +107,15 @@ torch::Tensor convolution(
                             }
                         }
                     }
-
                     output[b][oc][oh][ow] = sum;
                 }
             }
         }
     }
-
     return output_;
 }
+
+
 
 
 torch::Tensor convolution_v(
@@ -122,46 +182,25 @@ torch::Tensor convolution_v(
 
 
 
-using namespace std;
 
-int main()
-{
-    auto tse = TSE("/home/ilya/PRJ/CarClassify/div_tools/traced_qsc.zip");
-    at::Tensor data = torch::randn({1, 3, 224, 224});
-    int class_num = tse.predict(data);
-    cout << "class num: " << class_num << endl;
-    return 0;
-    auto const modelName = "/home/ilya/PRJ/CarClassify/div_tools/traced_qsc.zip";
-    torch::jit::script::Module module;
 
-    try {
-        // Deserialize the ScriptModule from a file using torch::jit::load().
-        module = torch::jit::load(modelName);
-    } catch (const c10::Error& e) {
-        std::cerr << "error loading the model\n";
-        return -1;
+
+std::vector<torch::Tensor> convolution_backward(
+    const at::Tensor& grad_output,
+    const at::Tensor& input,
+    const at::Tensor& weight,
+    c10::ArrayRef<int64_t> stride,
+    c10::ArrayRef<int64_t> padding) 
+    {
+        auto grad_input = torch::matmul(grad_output, weight);
+        auto grad_weight = torch::matmul(grad_output.t(), input);
+        auto grad_bias = torch::sum(grad_output, {0});
+        
+        return {grad_input, grad_weight.t(), grad_bias};
     }
 
-    std::cout << "Model " << modelName << " loaded fine\n";
-    // Create a vector of inputs.
-    std::vector<torch::jit::IValue> inputs;
-    inputs.push_back(torch::randn({1, 3, 224, 224}));
-    // Execute the model and turn its output into a tensor.
-    at::Tensor output = module.forward(inputs).toTensor();
-    std::cout << output << "\n";
-    int y_hat = output.argmax(1).item().toInt();
-    std::cout << "Predicted class: " << y_hat << "\n";
-    return 0;
-    cout << "Hello World!" << endl;
-    auto image_batch = torch::zeros({10, 1, 28, 28});
-    auto weights = torch::zeros({32, 1, 3, 3});
-    image_batch.fill_(0.5);
-    weights.fill_(0.5);
-    auto t = convolution(image_batch, weights, 1, 1);
-    torch::save(t, "one_t.pt");
-    auto t2 = convolution_v(image_batch, weights, 1, 1);
-    torch::save(t2, "two_t.pt");
-    auto t3 = t - t2;
-    print(t3[0]);
-    return 0;
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("convolution", &convolution, "convolution");
+    m.def("convolution_v", &convolution_v, "convolution_v");
+    m.def("convolution_backward", &convolution_backward, "convolution backward");
 }
